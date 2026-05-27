@@ -10,22 +10,19 @@ from email.mime.multipart import MIMEMultipart
 # ───────────────────────────────
 # Chemins
 # ───────────────────────────────
-BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
-ANALYSE_PY = os.path.join(BASE_DIR, "analyse.py")  # ← ton script inchangé
-CFG_FILE   = r"C:\Users\saidm\Documents\projet-cyber-hopital\flask_python\config.ini"
+from dotenv import load_dotenv
+load_dotenv() 
 
 # ───────────────────────────────
 # Connexion MySQL utilitaire
 # ───────────────────────────────
 def get_connection(buffered=False):
-    cfg = configparser.ConfigParser()
-    cfg.read(CFG_FILE)
     return mysql.connector.connect(
-        host=cfg["mysql"]["host"],
-        port=int(cfg["mysql"]["port"]),
-        user=cfg["mysql"]["user"],
-        password=cfg["mysql"]["password"],
-        database=cfg["mysql"]["database"],
+        host=os.getenv("MYSQL_HOST"),
+        port=int(os.getenv("MYSQL_PORT", 3306)),
+        user=os.getenv("MYSQL_USER"),
+        password=os.getenv("MYSQL_PASSWORD"),
+        database=os.getenv("MYSQL_DATABASE"),
         buffered=buffered,
     )
 
@@ -33,8 +30,12 @@ def get_connection(buffered=False):
 # Envoi d’alerte e-mail
 # ───────────────────────────────
 def send_alert_email(vuln_type, target_url):
-    cfg = configparser.ConfigParser()
-    cfg.read(CFG_FILE)
+    email_from = os.getenv("EMAIL_FROM")
+    email_to   = os.getenv("EMAIL_TO")
+    email_pwd  = os.getenv("EMAIL_PASSWORD")
+    email_smtp = os.getenv("EMAIL_SMTP", "smtp.gmail.com")
+    email_port = int(os.getenv("EMAIL_PORT", 587))
+    db_name    = os.getenv("MYSQL_DATABASE")
 
     msg = MIMEMultipart()
     msg['From'] = cfg["email"]["from"]
@@ -46,7 +47,7 @@ ALERTE SÉCURITÉ SYSTÈME
 ==============================
 
 URL testée: {target_url}
-Base de données: {cfg['mysql']['database']}
+Base de données: db_name
 Niveau de risque: MOYEN
 Date/Heure: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}
 
@@ -61,9 +62,8 @@ Ce message a été généré automatiquement par le système de détection.
 """
     msg.attach(MIMEText(body, 'plain'))
 
-    with smtplib.SMTP(cfg["email"]["smtp"], int(cfg["email"]["port"])) as server:
-        server.starttls()
-        server.login(cfg["email"]["from"], cfg["email"]["password"])
+    with smtplib.SMTP(email_smtp, email_port) as server:
+        server.login(email_from, email_pwd)
         server.send_message(msg)
 
 # ───────────────────────────────
@@ -119,8 +119,10 @@ def scan():
     if request.method == "POST":
         target = request.form["url"]
         with tempfile.TemporaryDirectory() as tmp:
-            sqlmap_dir  = r"C:\Users\saidm\Documents\sqlmap"
-            sqlmap_path = os.path.join(sqlmap_dir, "sqlmap.py")
+            sqlmap_path = os.getenv(
+    "SQLMAP_PATH",
+    os.path.join(BASE_DIR, "..", "sqlmap", "sqlmap.py")
+)
 
             sorties = []
 
