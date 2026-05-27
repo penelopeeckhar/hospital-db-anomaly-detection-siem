@@ -7,7 +7,7 @@
 
 import os
 import logging
-import configparser
+from dotenv import load_dotenv
 from datetime import datetime, timedelta, date
 from collections import defaultdict
 from email.mime.multipart import MIMEMultipart
@@ -32,24 +32,18 @@ logger.addHandler(_handler)
 # ───────────────────────────────
 # Configuration
 # ───────────────────────────────
-CFG_PATH = r"C:\Users\saidm\Documents\projet-cyber-hopital\flask_python\config.ini"
-config = configparser.ConfigParser()
-config.read(CFG_PATH, encoding="utf-8")
-
-DB_CFG = config["mysql"]
-MAIL_CFG = config["email"]
-
+load_dotenv()   # lit le fichier .env local
 # ───────────────────────────────
 # Helper – connexion MySQL
 # ───────────────────────────────
 
 def get_connection(buffered: bool = False):
     return mysql.connector.connect(
-        host=DB_CFG["host"],
-        port=int(DB_CFG["port"]),
-        user=DB_CFG["user"],
-        password=DB_CFG["password"],
-        database=DB_CFG["database"],
+        host=os.getenv("MYSQL_HOST"),
+        port=int(os.getenv("MYSQL_PORT", 3306)),
+        user=os.getenv("MYSQL_USER"),
+        password=os.getenv("MYSQL_PASSWORD"),
+        database=os.getenv("MYSQL_DATABASE"),
         buffered=buffered,
     )
 
@@ -60,10 +54,15 @@ def get_connection(buffered: bool = False):
 def envoyer_email(chemin_fichier: str) -> None:
     # Envoie le CSV en pièce jointe
     try:
-        msg = MIMEMultipart()
-        msg["From"] = MAIL_CFG["from"]
-        msg["To"] = MAIL_CFG["to"]
-        msg["Subject"] = "Rapport quotidien des anomalies détectées"
+        email_from = os.getenv("EMAIL_FROM")
+    email_to   = os.getenv("EMAIL_TO")
+    email_pwd  = os.getenv("EMAIL_PASSWORD")
+    email_smtp = os.getenv("EMAIL_SMTP", "smtp.gmail.com")
+    email_port = int(os.getenv("EMAIL_PORT", 587))
+
+    msg["From"]    = email_from
+    msg["To"]      = email_to
+    msg["Subject"] = "Rapport quotidien…"
 
         with open(chemin_fichier, "rb") as f:
             part = MIMEBase("application", "octet-stream")
@@ -76,9 +75,9 @@ def envoyer_email(chemin_fichier: str) -> None:
         msg.attach(part)
 
         logger.info("Tentative d'envoi du mail à %s", MAIL_CFG["to"])
-        with smtplib.SMTP(MAIL_CFG["smtp"], int(MAIL_CFG["port"])) as server:
+        with smtplib.SMTP(email_smtp, email_port) as server:
             server.starttls()
-            server.login(MAIL_CFG["from"], MAIL_CFG["password"])
+            server.login(email_from, email_pwd)
             server.send_message(msg)
         logger.info("E-mail envoyé avec succès.")
     except Exception:
