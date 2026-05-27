@@ -1,3 +1,23 @@
+# Credentials
+config.ini
+.env
+
+# Logs et exports
+*.log
+exports/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Sqlmap temp
+UserssaidmAppData*/
+
+# IDE
+.vscode/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
